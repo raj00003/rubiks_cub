@@ -106,6 +106,14 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       }
       
+      .cockpit-canvas {
+        width: 400px;
+        height: 300px;
+        margin: 20px 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      }
+      
       .reward-text {
         font-size: 1.5em;
         margin: 20px 0;
@@ -298,7 +306,7 @@
     <!-- Success Modal -->
     <div id="successModal" class="success-modal">
       <div class="success-content">
-        <h2 id="successTitle">🎉 Congratulations!</h2>
+        <h2 id="successTitle"> Congratulations!</h2>
         <p id="successMessage">You've successfully solved the level!</p>
         <button class="success-btn" onclick="collectReward()">Collect Reward</button>
         <button class="success-btn" onclick="retryCube()">Retry</button>
@@ -308,8 +316,9 @@
     <!-- Reward Modal -->
     <div id="rewardModal" class="reward-modal">
       <div class="reward-content">
-        <h1 class="reward-title" id="rewardTitle">🎉 Level Complete!</h1>
-        <canvas id="engineCanvas" class="engine-canvas"></canvas>
+        <h1 class="reward-title" id="rewardTitle"> Level Complete!</h1>
+        <canvas id="engineCanvas" class="engine-canvas" style="display: none;"></canvas>
+        <canvas id="cockpitCanvas" class="cockpit-canvas" style="display: none;"></canvas>
         <div class="reward-text" id="rewardText">✈️ Part Unlocked!</div>
         <button class="next-level-btn" id="nextLevelBtn" onclick="proceedToNextLevel()">Proceed to Next Level</button>
       </div>
@@ -343,8 +352,9 @@
     let isSolved = false;
     let rewardUnlocked = false;
     
-    // Engine animation variables
+    // Animation variables
     let engineScene, engineCamera, engineRenderer, engineTurbine, engineBody;
+    let cockpitScene, cockpitCamera, cockpitRenderer, cockpitDome, cockpitBody, radarAntenna;
     let animationId;
 
     // Level configuration
@@ -356,16 +366,18 @@
             rewardTitle: "🎉 Level 1 Complete!",
             rewardText: "✈️ Engine Part Unlocked!",
             nextLevelText: "Proceed to Level 2",
-            nextLevel: 2
+            nextLevel: 2,
+            rewardType: "engine"
         },
         2: {
             moves: 4,
             title: "Level 2",
             successMessage: "You've successfully completed Level 2!",
             rewardTitle: "🎉 Level 2 Complete!",
-            rewardText: "✈️ Fuselage Unlocked!",
+            rewardText: "🧠 Cockpit Unlocked! You're ready to pilot.",
             nextLevelText: "Proceed to Level 3",
-            nextLevel: 3
+            nextLevel: 3,
+            rewardType: "cockpit"
         }
     };
 
@@ -501,7 +513,7 @@
         modal.style.display = "none";
     }
 
-    // Collect reward - show engine animation
+    // Collect reward - show appropriate animation
     function collectReward() {
         console.log("Collecting reward for level", currentLevel);
         
@@ -519,12 +531,38 @@
             document.getElementById("rewardTitle").textContent = config.rewardTitle;
             document.getElementById("rewardText").textContent = config.rewardText;
             document.getElementById("nextLevelBtn").textContent = config.nextLevelText;
+            
+            // Show appropriate animation based on reward type
+            if (config.rewardType === "engine") {
+                showEngineAnimation();
+            } else if (config.rewardType === "cockpit") {
+                showCockpitAnimation();
+            }
         }
         
-        // Initialize engine animation
-        initEngineAnimation();
-        
         rewardUnlocked = true;
+    }
+
+    // Show engine animation
+    function showEngineAnimation() {
+        const engineCanvas = document.getElementById("engineCanvas");
+        const cockpitCanvas = document.getElementById("cockpitCanvas");
+        
+        engineCanvas.style.display = "block";
+        cockpitCanvas.style.display = "none";
+        
+        initEngineAnimation();
+    }
+
+    // Show cockpit animation
+    function showCockpitAnimation() {
+        const engineCanvas = document.getElementById("engineCanvas");
+        const cockpitCanvas = document.getElementById("cockpitCanvas");
+        
+        engineCanvas.style.display = "none";
+        cockpitCanvas.style.display = "block";
+        
+        initCockpitAnimation();
     }
 
     // Initialize 3D engine animation
@@ -595,6 +633,108 @@
         animateEngine();
     }
 
+    // Initialize 3D cockpit animation
+    function initCockpitAnimation() {
+        const canvas = document.getElementById('cockpitCanvas');
+        
+        // Create scene
+        cockpitScene = new THREE.Scene();
+        cockpitScene.background = new THREE.Color(0x1e3c72);
+        
+        // Create camera
+        cockpitCamera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+        cockpitCamera.position.set(0, 0, 5);
+        
+        // Create renderer
+        cockpitRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        cockpitRenderer.setSize(canvas.width, canvas.height);
+        cockpitRenderer.shadowMap.enabled = true;
+        cockpitRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        cockpitScene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        cockpitScene.add(directionalLight);
+        
+        // Add spotlight for dramatic effect
+        const spotlight = new THREE.SpotLight(0xffffff, 1);
+        spotlight.position.set(0, 5, 0);
+        spotlight.angle = Math.PI / 6;
+        spotlight.penumbra = 0.1;
+        spotlight.decay = 2;
+        spotlight.distance = 200;
+        spotlight.castShadow = true;
+        cockpitScene.add(spotlight);
+        
+        // Create cockpit dome (hemisphere)
+        const domeGeometry = new THREE.SphereGeometry(1.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+        const domeMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x2c3e50,
+            transparent: true,
+            opacity: 0.8,
+            shininess: 100
+        });
+        cockpitDome = new THREE.Mesh(domeGeometry, domeMaterial);
+        cockpitDome.position.y = 1;
+        cockpitDome.castShadow = true;
+        cockpitDome.receiveShadow = true;
+        cockpitScene.add(cockpitDome);
+        
+        // Create cockpit body (box)
+        const bodyGeometry = new THREE.BoxGeometry(2.5, 1, 2);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x34495e,
+            shininess: 50
+        });
+        cockpitBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        cockpitBody.position.y = 0;
+        cockpitBody.castShadow = true;
+        cockpitBody.receiveShadow = true;
+        cockpitScene.add(cockpitBody);
+        
+        // Create radar antenna (cylinder with cone)
+        const antennaGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
+        const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x95a5a6 });
+        const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+        antenna.position.y = 2.2;
+        cockpitScene.add(antenna);
+        
+        // Create radar dish (cone)
+        const dishGeometry = new THREE.ConeGeometry(0.3, 0.2, 8);
+        const dishMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x7f8c8d,
+            shininess: 100
+        });
+        radarAntenna = new THREE.Mesh(dishGeometry, dishMaterial);
+        radarAntenna.position.y = 2.6;
+        radarAntenna.castShadow = true;
+        cockpitScene.add(radarAntenna);
+        
+        // Add control panel details
+        const panelGeometry = new THREE.BoxGeometry(2, 0.1, 1.5);
+        const panelMaterial = new THREE.MeshPhongMaterial({ color: 0x2c3e50 });
+        const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+        panel.position.set(0, -0.3, 0.5);
+        cockpitScene.add(panel);
+        
+        // Add some instrument details
+        for (let i = 0; i < 5; i++) {
+            const instrumentGeometry = new THREE.CircleGeometry(0.1, 8);
+            const instrumentMaterial = new THREE.MeshPhongMaterial({ color: 0xecf0f1 });
+            const instrument = new THREE.Mesh(instrumentGeometry, instrumentMaterial);
+            instrument.position.set(-0.8 + i * 0.4, -0.25, 0.5);
+            instrument.rotation.x = -Math.PI / 2;
+            cockpitScene.add(instrument);
+        }
+        
+        // Start animation
+        animateCockpit();
+    }
+
     // Animate the engine
     function animateEngine() {
         animationId = requestAnimationFrame(animateEngine);
@@ -615,11 +755,40 @@
         }
     }
 
+    // Animate the cockpit
+    function animateCockpit() {
+        animationId = requestAnimationFrame(animateCockpit);
+        
+        // Rotate radar antenna continuously
+        if (radarAntenna) {
+            radarAntenna.rotation.y += 0.05;
+        }
+        
+        // Slightly bob the cockpit to simulate motion
+        if (cockpitDome && cockpitBody) {
+            const time = Date.now() * 0.001;
+            const bobAmount = Math.sin(time * 2) * 0.05;
+            cockpitDome.position.y = 1 + bobAmount;
+            cockpitBody.position.y = bobAmount;
+        }
+        
+        // Rotate the entire cockpit slowly
+        if (cockpitDome && cockpitBody) {
+            cockpitDome.rotation.y += 0.01;
+            cockpitBody.rotation.y += 0.01;
+        }
+        
+        // Render the scene
+        if (cockpitRenderer && cockpitScene && cockpitCamera) {
+            cockpitRenderer.render(cockpitScene, cockpitCamera);
+        }
+    }
+
     // Proceed to next level
     function proceedToNextLevel() {
         console.log("Proceeding to next level...");
         
-        // Stop engine animation
+        // Stop animation
         if (animationId) {
             cancelAnimationFrame(animationId);
         }
